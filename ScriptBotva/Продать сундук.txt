@@ -1,0 +1,284 @@
+/* ==========================================================================
+   Скрипт продажи сундуков — вставить в консоль браузера (F12 -> Console)
+   на странице игры, когда уже открыта вкладка "ДРУГОЕ" в лавке (Продать).
+   Создаёт плавающую панель с чекбоксами, статусом и статистикой.
+   ========================================================================== */
+(function () {
+  'use strict';
+ 
+  // если скрипт уже запущен — просто показать панель заново
+  if (window.__chestSellerPanel) {
+    window.__chestSellerPanel.style.display = 'block';
+    return;
+  }
+ 
+  // ---- список сундуков. ID '***' — заполни реальными id предметов ----
+  const CHESTS = [
+    { key: 'derevynyi', id: '1657', name: 'Деревянный сундук' },
+    { key: 'serebrynyi', id: '1658', name: 'Серебряный сундук' },
+    { key: 'zolotoy', id: '1659', name: 'Золотой сундук' },
+    { key: 'lekar', id: '1507', name: 'Сундук лекаря' },
+    { key: 'zvery', id: '1506', name: 'Сундук зверей' },
+    { key: 'ninzy', id: '***', name: 'Сундук ниндзя' },   // <-- укажи реальный id
+    { key: 'tank', id: '***', name: 'Сундук танка' }      // <-- укажи реальный id
+  ];
+ 
+  const state = {
+    running: false,
+    settings: {},          // key -> bool (чекбоксы)
+    stats: {
+      sold: {},             // key -> count
+      totalSold: 0,
+      errors: 0,
+      attempts: 0
+    }
+  };
+ 
+  CHESTS.forEach(c => {
+    state.settings[c.key] = false;
+    state.stats.sold[c.key] = 0;
+  });
+ 
+  // =========================== helpers ===========================
+ 
+  function sleep(ms) {
+    return new Promise(res => setTimeout(res, ms));
+  }
+ 
+  function safeClick(el) {
+    try {
+      el.click();
+      return true;
+    } catch (e) {
+      console.warn('Ошибка клика:', e);
+      return false;
+    }
+  }
+ 
+  // поиск div, у которого атрибут onmouseover содержит подстроку (аналог contains(@onmouseover,...))
+  function findByAttrContains(tag, attr, substring) {
+    const nodes = document.querySelectorAll(tag + '[' + attr + ']');
+    for (const node of nodes) {
+      const val = node.getAttribute(attr) || '';
+      if (val.includes(substring)) return node;
+    }
+    return null;
+  }
+ 
+  async function waitForSelector(selector, timeoutMs) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const el = document.querySelector(selector);
+      if (el) return el;
+      await sleep(150);
+    }
+    return null;
+  }
+ 
+  // =========================== UI ===========================
+ 
+  const style = document.createElement('style');
+  style.textContent = `
+    #chest-seller-panel {
+      position: fixed; top: 20px; right: 20px; width: 260px;
+      background: #1e1e1e; color: #eee; font: 13px/1.4 Arial, sans-serif;
+      border: 1px solid #444; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.5);
+      z-index: 999999; padding: 10px; user-select: none;
+    }
+    #chest-seller-panel h3 {
+      margin: 0 0 8px; font-size: 14px; cursor: move;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #chest-seller-panel .close-btn { cursor: pointer; color: #aaa; }
+    #chest-seller-panel .close-btn:hover { color: #fff; }
+    #chest-seller-panel label { display: block; margin: 3px 0; cursor: pointer; }
+    #chest-seller-panel button {
+      width: 100%; margin-top: 8px; padding: 6px; border: none; border-radius: 4px;
+      background: #2e7d32; color: #fff; cursor: pointer; font-weight: bold;
+    }
+    #chest-seller-panel button.stop { background: #c62828; }
+    #chest-seller-panel .status { margin-top: 8px; font-weight: bold; color: #ffd54f; }
+    #chest-seller-panel .stats { margin-top: 6px; border-top: 1px solid #444; padding-top: 6px; }
+    #chest-seller-panel .stats div { display: flex; justify-content: space-between; }
+    #chest-seller-panel .total { margin-top: 6px; border-top: 1px solid #444; padding-top: 6px; font-weight: bold; }
+  `;
+  document.head.appendChild(style);
+ 
+  const panel = document.createElement('div');
+  panel.id = 'chest-seller-panel';
+  window.__chestSellerPanel = panel;
+ 
+  panel.innerHTML = `
+    <h3>Продажа сундуков <span class="close-btn" title="Закрыть">✕</span></h3>
+    <div class="checkboxes"></div>
+    <button class="toggle-btn">Старт</button>
+    <div class="status">Статус: ожидание</div>
+    <div class="stats"></div>
+    <div class="total">
+      <div>Всего продаж: <span class="total-sold">0</span></div>
+      <div>Всего ошибок: <span class="total-errors">0</span></div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+ 
+  const checkboxesContainer = panel.querySelector('.checkboxes');
+  const statsContainer = panel.querySelector('.stats');
+  const statusEl = panel.querySelector('.status');
+  const totalSoldEl = panel.querySelector('.total-sold');
+  const totalErrorsEl = panel.querySelector('.total-errors');
+  const toggleBtn = panel.querySelector('.toggle-btn');
+  const closeBtn = panel.querySelector('.close-btn');
+ 
+  CHESTS.forEach(c => {
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.dataset.key = c.key;
+    cb.addEventListener('change', () => { state.settings[c.key] = cb.checked; });
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(' ' + c.name));
+    checkboxesContainer.appendChild(label);
+ 
+    const statRow = document.createElement('div');
+    statRow.innerHTML = `<span>${c.name}:</span><span id="stat-${c.key}">0</span>`;
+    statsContainer.appendChild(statRow);
+  });
+ 
+  closeBtn.addEventListener('click', () => {
+    panel.style.display = 'none';
+  });
+ 
+  toggleBtn.addEventListener('click', () => {
+    if (state.running) {
+      state.running = false;
+      setStatus('Статус: остановка...');
+    } else {
+      runSellLoop();
+    }
+  });
+ 
+  function setStatus(text) {
+    statusEl.textContent = text;
+  }
+ 
+  function updateButton() {
+    if (state.running) {
+      toggleBtn.textContent = 'Стоп';
+      toggleBtn.classList.add('stop');
+    } else {
+      toggleBtn.textContent = 'Старт';
+      toggleBtn.classList.remove('stop');
+    }
+  }
+ 
+  function updateStatsUI() {
+    CHESTS.forEach(c => {
+      const el = document.getElementById('stat-' + c.key);
+      if (el) el.textContent = state.stats.sold[c.key];
+    });
+    totalSoldEl.textContent = state.stats.totalSold;
+    totalErrorsEl.textContent = state.stats.errors;
+  }
+ 
+  // простая возможность таскать панель за заголовок
+  (function makeDraggable() {
+    const header = panel.querySelector('h3');
+    let offsetX, offsetY, dragging = false;
+    header.addEventListener('mousedown', e => {
+      if (e.target === closeBtn) return;
+      dragging = true;
+      const rect = panel.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      panel.style.left = (e.clientX - offsetX) + 'px';
+      panel.style.top = (e.clientY - offsetY) + 'px';
+      panel.style.right = 'auto';
+    });
+    document.addEventListener('mouseup', () => { dragging = false; });
+  })();
+ 
+  // =========================== основная логика ===========================
+ 
+  async function runSellLoop() {
+    state.running = true;
+    updateButton();
+    setStatus('Статус: Продаем Сундуки');
+ 
+    const enabledChests = CHESTS.filter(c => state.settings[c.key]);
+ 
+    if (enabledChests.length === 0) {
+      setStatus('Статус: не выбрано ни одного сундука');
+      state.running = false;
+      updateButton();
+      return;
+    }
+ 
+    // проверяем, есть ли в инвентаре хотя бы один выбранный сундук
+    let flag = false;
+    for (const c of enabledChests) {
+      if (findByAttrContains('*', 'onmouseover', `doItem('${c.id}'`)) {
+        flag = true;
+        break;
+      }
+    }
+ 
+    if (!flag) {
+      setStatus('Статус: сундуков нет');
+      state.running = false;
+      updateButton();
+      return;
+    }
+ 
+    let errorInt = 0;
+    let con = 0;
+ 
+    for (const c of enabledChests) {
+      if (!state.running) break;
+ 
+      const selector = `#cell_cmd_${c.id} input[value="ПРОДАТЬ"]`;
+      if (!document.querySelector(selector)) continue;
+ 
+      for (let i = 0; i < 50; i++) {
+        if (!state.running) break;
+ 
+        con++;
+        state.stats.attempts++;
+ 
+        if (errorInt > 5) {
+          console.log('Ошибок > 5, стоп');
+          setStatus('Статус: остановлено из-за ошибок');
+          state.running = false;
+          break;
+        }
+ 
+        const btn = await waitForSelector(selector, 5000);
+ 
+        let success = false;
+        if (btn) {
+          success = safeClick(btn);
+          await sleep(1000);
+        }
+ 
+        if (success) {
+          errorInt = 0;
+          state.stats.sold[c.key]++;
+          state.stats.totalSold++;
+        } else {
+          errorInt++;
+          state.stats.errors++;
+          console.log('Ошибка продажи #' + errorInt);
+        }
+ 
+        updateStatsUI();
+      }
+    }
+ 
+    setStatus('Статус:');
+    state.running = false;
+    updateButton();
+  }
+ 
+})();

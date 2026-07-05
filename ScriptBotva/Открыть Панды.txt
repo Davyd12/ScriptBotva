@@ -1,0 +1,9 @@
+$.fn.rotate = function(options) {
+    if (options && options.animateTo !== undefined) {
+        this.css('transform', 'rotate(' + options.animateTo + 'deg)');
+        if (typeof options.callback === 'function') {
+            options.callback();}}
+    return this;};
+
+PANDORA_GOLD.rotation=PANDORA_GOLD.showResult
+PANDORA_GOLD.rotationRun()

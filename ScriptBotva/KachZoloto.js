@@ -8,7 +8,7 @@ javascript:(function() {
     }
     
   
-
+    javascript:script=document.createElement('script');script.type='text/javascript';script.src='https://cdn.jsdelivr.net/gh/Davyd12/ScriptBotva@master/ScriptBotva/KachZoloto.js';document.getElementsByTagName("head")[0].appendChild(script);void(0);
 
     function fixEncoding() {
         if (!document.querySelector('meta[charset="windows-1251"], meta[charset="windows-1251"]')) {

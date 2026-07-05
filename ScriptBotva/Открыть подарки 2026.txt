@@ -1,0 +1,147 @@
+(function() {
+    let clickCount = 0;
+    let isRunning = true;
+    let isWaiting = false;
+    let timeoutId = null;
+    let observer = null;
+
+    // Ищем форму, которая содержит input[name="do_cmd"][value="open"]
+    function getForm() {
+        // Находим все формы
+        const allForms = document.querySelectorAll('form');
+        
+        // Перебираем формы и ищем ту, у которой внутри есть input[name="do_cmd"][value="open"]
+        for (let form of allForms) {
+            const doCmdInput = form.querySelector('input[name="do_cmd"][value="open"]');
+            if (doCmdInput) {
+                return form;
+            }
+        }
+        
+        return null;
+    }
+
+    function getCurrentKValue(form) {
+        const kInput = form?.querySelector('input[name="k"]');
+        return kInput?.value || null;
+    }
+
+    function performClick() {
+        clickCount++;
+        const form = getForm();
+        
+        if (!form) {
+            console.log(`[ОШИБКА] Форма с do_cmd=open не найдена на клике #${clickCount}`);
+            return false;
+        }
+        
+        const currentK = getCurrentKValue(form);
+        
+        // Ищем кнопку submit
+        let submitButton = form.querySelector('.button_new.default_open.small_sl input[type="submit"]');
+        if (!submitButton) {
+            submitButton = form.querySelector('input[type="submit"]');
+        }
+        
+        if (submitButton) {
+            console.log(`[КЛИК #${clickCount}] ${new Date().toLocaleTimeString()} | k=${currentK}`);
+            submitButton.click();
+            return true;
+        } else {
+            console.log(`[ОШИБКА] Кнопка ОТКРЫТЬ не найдена на клике #${clickCount}`);
+            return false;
+        }
+    }
+
+    function waitAndClick() {
+        if (!isRunning || isWaiting) return;
+        
+        isWaiting = true;
+        const form = getForm();
+        
+        if (!form) {
+            console.log('[ОШИБКА] Форма с do_cmd=open не найдена, останавливаем скрипт');
+            stopScript();
+            return;
+        }
+        
+        const kBefore = getCurrentKValue(form);
+        
+        console.log(`[ОЖИДАНИЕ] k=${kBefore}, ждем изменения или 5 сек...`);
+        
+        observer = new MutationObserver(() => {
+            const currentForm = getForm();
+            if (!currentForm) return;
+            
+            const currentK = getCurrentKValue(currentForm);
+            if (currentK !== null && currentK !== kBefore) {
+                console.log(`[ИЗМЕНЕНИЕ] k: ${kBefore} → ${currentK}`);
+                observer.disconnect();
+                clearTimeout(timeoutId);
+                isWaiting = false;
+                
+                setTimeout(() => {
+                    if (isRunning && performClick()) {
+                        waitAndClick();
+                    }
+                }, 300);
+            }
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['value']
+        });
+        
+        timeoutId = setTimeout(() => {
+            if (!isRunning) return;
+            console.log(`[ТАЙМАУТ] 5 сек, k не изменился (остался ${kBefore})`);
+            observer.disconnect();
+            isWaiting = false;
+            
+            setTimeout(() => {
+                if (isRunning && performClick()) {
+                    waitAndClick();
+                }
+            }, 300);
+        }, 5000);
+    }
+    
+    function stopScript() {
+        isRunning = false;
+        if (timeoutId) clearTimeout(timeoutId);
+        if (observer) observer.disconnect();
+        console.log(`\n[СТОП] Скрипт остановлен. Всего кликов: ${clickCount}`);
+    }
+    
+    window.stopGiftClicker = stopScript;
+    
+    console.log('\n=== ЗАПУСК ===');
+    const initialForm = getForm();
+    if (initialForm) {
+        console.log('[OK] Форма с do_cmd=open найдена');
+        console.log(`Action: ${initialForm.action}`);
+        console.log(`ID формы: ${initialForm.id || 'нет ID'}`);
+        console.log(`Текущий k=${getCurrentKValue(initialForm)}`);
+        
+        // Проверяем наличие кнопки
+        const button = initialForm.querySelector('.button_new.default_open.small_sl');
+        if (button) {
+            console.log('[OK] Контейнер кнопки ОТКРЫТЬ найден');
+            const submitInput = button.querySelector('input[type="submit"]');
+            if (submitInput) {
+                console.log('[OK] Кнопка submit найдена');
+            }
+        }
+    } else {
+        console.log('[ОШИБКА] Форма с input[name="do_cmd"][value="open"] не найдена');
+        console.log('Все формы на странице:', document.querySelectorAll('form').length);
+    }
+    console.log('Для остановки: stopGiftClicker()\n');
+    
+    if (initialForm && performClick()) {
+        waitAndClick();
+    }
+})();

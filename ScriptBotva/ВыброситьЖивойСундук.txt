@@ -1,0 +1,23 @@
+(async () => {
+    for (let i = 0; i < 5; i++) {
+
+        let form = document.querySelector("#locked_chest_drop");
+        let btn = form.querySelector('input[type="submit"][value="ВЫКИНУТЬ"]');
+
+        const oldAction = form.action;
+
+        btn.click();
+
+        while (true) {
+            await new Promise(r => setTimeout(r, 20));
+        console.log(`ждем`);
+
+            form = document.querySelector("#locked_chest_drop");
+
+            if (form && form.action !== oldAction)
+                break;
+        }
+
+        console.log(`${i + 1}: ${form.action}`);
+    }
+})();

@@ -1,0 +1,288 @@
+/* ==========================================================================
+   Скрипт "Подбросить случайному недругу" — вставить в консоль браузера
+   (F12 -> Console) на нужной странице игры.
+   Создаёт плавающую панель со статусом и статистикой.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  if (window.__randomEnemyPanel) {
+    window.__randomEnemyPanel.style.display = 'block';
+    return;
+  }
+
+  const PLACEHOLDER_TEXT = 'Введите имя недруга';
+  const ERROR_LIMIT = 10;
+
+  const state = {
+    running: false,
+    stats: {
+      attempts: 0,
+      success: 0,
+      errors: 0
+    }
+  };
+
+  // =========================== helpers ===========================
+
+  function sleep(ms) {
+    return new Promise(res => setTimeout(res, ms));
+  }
+
+  function safeClick(el) {
+    try {
+      el.click();
+      return true;
+    } catch (e) {
+      console.warn('Ошибка клика:', e);
+      return false;
+    }
+  }
+
+  function clickRandomBtn() {
+    const el = document.querySelector('span[data-list="rand_list"]');
+    if (el) return safeClick(el);
+    return false;
+  }
+
+  function getEnemyInput() {
+    return document.getElementById('chicken_enemy');
+  }
+
+  function isEnemyNameValid(expectedName) {
+    const input = getEnemyInput();
+    if (!input) return false;
+    const val = input.value.trim();
+    if (val === '' || val === PLACEHOLDER_TEXT) return false;
+    if (expectedName) return val === expectedName;
+    return true;
+  }
+
+  function setEnemyInputValue(name) {
+    const input = getEnemyInput();
+    if (!input) return false;
+    input.focus();
+    input.value = name;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.blur();
+    return true;
+  }
+
+  // ищем span, который содержит текст "ПОДБРОСИТЬ", внутри него input[type=submit]
+  function findThrowButton() {
+    const spans = document.querySelectorAll('span');
+    for (const span of spans) {
+      if (span.textContent.includes('ПОДБРОСИТЬ')) {
+        const input = span.querySelector('input[type="submit"]');
+        if (input) return input;
+      }
+    }
+    return null;
+  }
+
+  async function waitFor(conditionFn, timeoutMs) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (conditionFn()) return true;
+      await sleep(100);
+    }
+    return false;
+  }
+
+  // =========================== UI ===========================
+
+  const style = document.createElement('style');
+  style.textContent = `
+    #random-enemy-panel {
+      position: fixed; top: 20px; right: 20px; width: 240px;
+      background: #1e1e1e; color: #eee; font: 13px/1.4 Arial, sans-serif;
+      border: 1px solid #444; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.5);
+      z-index: 999999; padding: 10px; user-select: none;
+    }
+    #random-enemy-panel h3 {
+      margin: 0 0 8px; font-size: 14px; cursor: move;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #random-enemy-panel .close-btn { cursor: pointer; color: #aaa; }
+    #random-enemy-panel .close-btn:hover { color: #fff; }
+    #random-enemy-panel button {
+      width: 100%; margin-top: 4px; padding: 6px; border: none; border-radius: 4px;
+      background: #2e7d32; color: #fff; cursor: pointer; font-weight: bold;
+    }
+    #random-enemy-panel button.stop { background: #c62828; }
+    #random-enemy-panel .name-label { display: block; margin-top: 6px; font-size: 11px; color: #aaa; }
+    #random-enemy-panel .name-input {
+      width: 100%; box-sizing: border-box; margin-top: 2px; padding: 5px;
+      border-radius: 4px; border: 1px solid #444; background: #2a2a2a; color: #eee;
+    }
+    #random-enemy-panel .status { margin-top: 8px; font-weight: bold; color: #ffd54f; }
+    #random-enemy-panel .stats { margin-top: 6px; border-top: 1px solid #444; padding-top: 6px; }
+    #random-enemy-panel .stats div { display: flex; justify-content: space-between; }
+  `;
+  document.head.appendChild(style);
+
+  const panel = document.createElement('div');
+  panel.id = 'random-enemy-panel';
+  window.__randomEnemyPanel = panel;
+
+  panel.innerHTML = `
+    <h3>Подбросить недругу <span class="close-btn" title="Закрыть">✕</span></h3>
+    <label class="name-label">Имя недруга (пусто = случайно)</label>
+    <input type="text" class="name-input" placeholder="оставь пустым для случайного" />
+    <button class="toggle-btn">Старт</button>
+    <div class="status">Статус: ожидание</div>
+    <div class="stats">
+      <div>Попыток: <span class="stat-attempts">0</span></div>
+      <div>Успешно: <span class="stat-success">0</span></div>
+      <div>Ошибок: <span class="stat-errors">0</span></div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  const nameInput = panel.querySelector('.name-input');
+  const statusEl = panel.querySelector('.status');
+  const toggleBtn = panel.querySelector('.toggle-btn');
+  const closeBtn = panel.querySelector('.close-btn');
+  const attemptsEl = panel.querySelector('.stat-attempts');
+  const successEl = panel.querySelector('.stat-success');
+  const errorsEl = panel.querySelector('.stat-errors');
+
+  closeBtn.addEventListener('click', () => { panel.style.display = 'none'; });
+
+  toggleBtn.addEventListener('click', () => {
+    if (state.running) {
+      state.running = false;
+      setStatus('Статус: остановка...');
+    } else {
+      runLoop();
+    }
+  });
+
+  function setStatus(text) { statusEl.textContent = text; }
+
+  function updateButton() {
+    if (state.running) {
+      toggleBtn.textContent = 'Стоп';
+      toggleBtn.classList.add('stop');
+    } else {
+      toggleBtn.textContent = 'Старт';
+      toggleBtn.classList.remove('stop');
+    }
+  }
+
+  function updateStatsUI() {
+    attemptsEl.textContent = state.stats.attempts;
+    successEl.textContent = state.stats.success;
+    errorsEl.textContent = state.stats.errors;
+  }
+
+  // драг панели за заголовок
+  (function makeDraggable() {
+    const header = panel.querySelector('h3');
+    let offsetX, offsetY, dragging = false;
+    header.addEventListener('mousedown', e => {
+      if (e.target === closeBtn) return;
+      dragging = true;
+      const rect = panel.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      panel.style.left = (e.clientX - offsetX) + 'px';
+      panel.style.top = (e.clientY - offsetY) + 'px';
+      panel.style.right = 'auto';
+    });
+    document.addEventListener('mouseup', () => { dragging = false; });
+  })();
+
+  // =========================== основная логика ===========================
+
+  async function runLoop() {
+    state.running = true;
+    updateButton();
+    setStatus('Статус: работаем');
+
+    let errorInt = 0;
+
+    while (state.running) {
+      state.stats.attempts++;
+      updateStatsUI();
+
+      if (errorInt >= ERROR_LIMIT) {
+        console.log('Достигнут лимит ошибок (' + ERROR_LIMIT + '), стоп');
+        setStatus('Статус: остановлено (много ошибок)');
+        state.running = false;
+        break;
+      }
+
+      const manualName = nameInput.value.trim();
+
+      if (manualName) {
+        // ставим введённое имя программно
+        if (!setEnemyInputValue(manualName)) {
+          errorInt++;
+          state.stats.errors++;
+          updateStatsUI();
+          console.log('Не найдено поле имени недруга, ошибка #' + errorInt);
+          await sleep(500);
+          continue;
+        }
+      } else {
+        // 1. клик "Случайно"
+        if (!clickRandomBtn()) {
+          errorInt++;
+          state.stats.errors++;
+          updateStatsUI();
+          console.log('Не найдена кнопка "Случайно", ошибка #' + errorInt);
+          await sleep(500);
+          continue;
+        }
+      }
+
+      // 2. ждём, пока имя недруга подставится (своё или случайное) и не равно плейсхолдеру
+      const filled = await waitFor(() => isEnemyNameValid(manualName || null), 3000);
+
+      if (!filled) {
+        errorInt++;
+        state.stats.errors++;
+        updateStatsUI();
+        console.log('Имя недруга не заполнилось, ошибка #' + errorInt);
+        await sleep(500);
+        continue;
+      }
+
+      // 3. клик "ПОДБРОСИТЬ"
+      const throwBtn = findThrowButton();
+      if (!throwBtn) {
+        errorInt++;
+        state.stats.errors++;
+        updateStatsUI();
+        console.log('Не найдена кнопка "ПОДБРОСИТЬ", ошибка #' + errorInt);
+        await sleep(500);
+        continue;
+      }
+
+      const clicked = safeClick(throwBtn);
+
+      if (clicked) {
+        errorInt = 0;
+        state.stats.success++;
+        updateStatsUI();
+      } else {
+        errorInt++;
+        state.stats.errors++;
+        updateStatsUI();
+        console.log('Ошибка клика "ПОДБРОСИТЬ", ошибка #' + errorInt);
+      }
+
+      await sleep(1000);
+    }
+
+    setStatus('Статус:');
+    state.running = false;
+    updateButton();
+  }
+
+})();
