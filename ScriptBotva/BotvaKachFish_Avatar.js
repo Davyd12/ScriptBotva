@@ -1,3 +1,6 @@
+//javascript:script=document.createElement('script');script.type='text/javascript';script.src='https://cdn.jsdelivr.net/gh/Davyd12/ScriptBotva@master/ScriptBotva/BotvaKachFish_Avatar.js';document.getElementsByTagName("head")[0].appendChild(script);void(0);
+
+
 (function() {
     function decodeRussianText(text) {
         try {
