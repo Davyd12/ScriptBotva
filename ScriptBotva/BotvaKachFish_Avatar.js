@@ -1,7 +1,4 @@
-//javascript:script=document.createElement('script');script.type='text/javascript';script.src='https://cdn.jsdelivr.net/gh/Davyd12/ScriptBotva@master/ScriptBotva/BotvaKachFish_Avatar.js';document.getElementsByTagName("head")[0].appendChild(script);void(0);
-
-
-(function() {
+javascript:(function() {
     function decodeRussianText(text) {
         try {
             return decodeURIComponent(text);
@@ -37,9 +34,18 @@
     let isRunning = false;
     let iterationCount = 0;
     
-    function setElementText(element, encodedText) {
+    // Объект с русскими названиями статов
+    const statNames = {
+        power: 'Сила',
+        block: 'Защита',
+        dexterity: 'Ловкость',
+        endurance: 'Масса',
+        charisma: 'Мастерство'
+    };
+    
+    function setElementText(element, text) {
         if (element) {
-            element.textContent = decodeURIComponent(encodedText);
+            element.textContent = text;
         }
     }
     
@@ -67,7 +73,7 @@
         `;
         
         const title = document.createElement('div');
-        setElementText(title, '%F0%9F%A4%96%20%D0%90%D0%B2%D1%82%D0%BE%D0%BF%D1%80%D0%BE%D0%BA%D0%B0%D1%87%D0%BA%D0%B0%20%D1%85%D0%B0%D1%80%D0%B0%D0%BA%D1%82%D0%B5%D1%80%D0%B8%D1%81%D1%82%D0%B8%D0%BA');
+        setElementText(title, '🤖 Автопрокачка характеристики');
         title.style.cssText = `
             font-weight: bold;
             font-size: 16px;
@@ -78,7 +84,7 @@
         
         const status = document.createElement('div');
         status.id = 'trainer-status';
-        setElementText(status, '%F0%9F%9F%A2%20%D0%A1%D1%82%D0%B0%D1%82%D1%83%D1%81%3A%20%D0%97%D0%B0%D0%BF%D1%83%D1%89%D0%B5%D0%BD');
+        setElementText(status, '🟢 Статус: Запущен');
         status.style.cssText = `
             margin: 8px 0;
             padding: 6px;
@@ -89,7 +95,7 @@
         
         const iterationsInfo = document.createElement('div');
         iterationsInfo.id = 'trainer-iterations-info';
-        setElementText(iterationsInfo, '%F0%9F%94%84%20%D0%98%D1%82%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B9%3A%200');
+        setElementText(iterationsInfo, '🔄 Итераций: 0');
         iterationsInfo.style.cssText = `
             margin: 8px 0;
             padding: 6px;
@@ -101,7 +107,7 @@
         
         const fishInfo = document.createElement('div');
         fishInfo.id = 'trainer-fish-info';
-        setElementText(fishInfo, '%F0%9F%92%B0%20%D0%A0%D1%8B%D0%B1%D0%B0%3A%200');
+        setElementText(fishInfo, '💰 Рыба: 0');
         fishInfo.style.cssText = `
             margin: 8px 0;
             padding: 6px;
@@ -120,7 +126,7 @@
         `;
         
         const statsTitle = document.createElement('div');
-        setElementText(statsTitle, '%F0%9F%93%8A%20%D0%92%D1%8B%D0%B1%D0%BE%D1%80%20%D1%85%D0%B0%D1%80%D0%B0%D0%BA%D1%82%D0%B5%D1%80%D0%B8%D1%81%D1%82%D0%B8%D0%BA%3A');
+        setElementText(statsTitle, '📊 Выбор характеристики:');
         statsTitle.style.cssText = `
             margin-bottom: 8px;
             font-weight: bold;
@@ -171,15 +177,7 @@
             
             const label = document.createElement('label');
             label.htmlFor = `stat-checkbox-${stat}`;
-            
-let encodedStatName = '';
-if (stat === 'power') encodedStatName = '%D0%A1%D0%B8%D0%BB%D0%B0'; // Сила
-else if (stat === 'block') encodedStatName = '%D0%97%D0%B0%D1%89%D0%B8%D1%82%D0%B0'; // Защита
-else if (stat === 'dexterity') encodedStatName = '%D0%9B%D0%BE%D0%B2%D0%BA%D0%BE%D1%81%D1%82%D1%8C'; // Ловкость
-else if (stat === 'endurance') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%81%D0%B0'; // Масса
-else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%D1%80%D1%81%D1%82%D0%B2%D0%BE'; // Мастерство
-            
-            setElementText(label, encodedStatName);
+            setElementText(label, statNames[stat]);
             label.style.cssText = `
                 cursor: pointer;
                 font-size: 13px;
@@ -193,7 +191,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         
         const selectedStatsInfo = document.createElement('div');
         selectedStatsInfo.id = 'trainer-selected-stats';
-        setElementText(selectedStatsInfo, `%D0%92%D1%8B%D0%B1%D1%80%D0%B0%D0%BD%D0%BE%3A%20${selectedStats.length}/${allStats.length}`);
+        setElementText(selectedStatsInfo, `Выбрано: ${selectedStats.length}/${allStats.length}`);
         selectedStatsInfo.style.cssText = `
             margin-top: 8px;
             padding: 4px 8px;
@@ -211,7 +209,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         `;
         
         const selectAllBtn = document.createElement('button');
-        setElementText(selectAllBtn, '%D0%92%D1%8B%D0%B1%D1%80%D0%B0%D1%82%D1%8C%20%D0%B2%D1%81%D0%B5');
+        setElementText(selectAllBtn, 'Выбрать все');
         selectAllBtn.style.cssText = `
             flex: 1;
             padding: 4px;
@@ -229,7 +227,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         };
         
         const selectNoneBtn = document.createElement('button');
-        setElementText(selectNoneBtn, '%D0%A1%D0%B1%D1%80%D0%BE%D1%81%D0%B8%D1%82%D1%8C');
+        setElementText(selectNoneBtn, 'Сбросить');
         selectNoneBtn.style.cssText = `
             flex: 1;
             padding: 4px;
@@ -256,7 +254,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         
         const currentAction = document.createElement('div');
         currentAction.id = 'trainer-current-action';
-        setElementText(currentAction, '%E2%8F%B3%20%D0%9E%D0%B6%D0%B8%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5...');
+        setElementText(currentAction, '⏳ Ожидание...');
         currentAction.style.cssText = `
             margin: 8px 0;
             padding: 6px;
@@ -276,7 +274,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         
         const startBtn = document.createElement('button');
         startBtn.id = 'trainer-start-btn';
-        setElementText(startBtn, '%E2%96%B6%EF%B8%8F%20%D0%A1%D1%82%D0%B0%D1%80%D1%82');
+        setElementText(startBtn, '▶️ Старт');
         startBtn.style.cssText = `
             flex: 1;
             padding: 10px;
@@ -294,7 +292,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         
         const stopBtn = document.createElement('button');
         stopBtn.id = 'trainer-stop-btn';
-        setElementText(stopBtn, '%E2%8F%B9%EF%B8%8F%20%D0%A1%D1%82%D0%BE%D0%BF');
+        setElementText(stopBtn, '⏹️ Стоп');
         stopBtn.style.cssText = `
             flex: 1;
             padding: 10px;
@@ -311,7 +309,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         stopBtn.onclick = () => stopTraining();
         
         const closeBtn = document.createElement('button');
-        setElementText(closeBtn, '%E2%9C%95');
+        setElementText(closeBtn, '❌');
         closeBtn.style.cssText = `
             position: absolute;
             top: 5px;
@@ -328,7 +326,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         closeBtn.onclick = () => panel.remove();
         
         const signature = document.createElement('div');
-        setElementText(signature, '@%D0%94%D0%B0%D0%B2%D1%8B%D0%B4%202026');
+        setElementText(signature, '@Давыд 2026');
         signature.style.cssText = `
             margin-top: 15px;
             padding-top: 10px;
@@ -368,7 +366,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
     function updateSelectedStatsInfo() {
         const selectedStatsInfo = document.getElementById('trainer-selected-stats');
         if (selectedStatsInfo) {
-            setElementText(selectedStatsInfo, `%D0%92%D1%8B%D0%B1%D1%80%D0%B0%D0%BD%D0%BE%3A%20${selectedStats.length}/${allStats.length}`);
+            setElementText(selectedStatsInfo, `Выбрано: ${selectedStats.length}/${allStats.length}`);
             
             if (selectedStats.length === 0) {
                 selectedStatsInfo.style.background = '#742a2a';
@@ -390,16 +388,16 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
     function updateStatus() {
         const status = document.getElementById('trainer-status');
         if (status) {
-            const statusIcon = isRunning ? '%F0%9F%9F%A2' : '%F0%9F%94%B4';
-            const statusText = isRunning ? '%D0%97%D0%B0%D0%BF%D1%83%D1%89%D0%B5%D0%BD' : '%D0%9E%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD';
-            setElementText(status, `${statusIcon}%20%D0%A1%D1%82%D0%B0%D1%82%D1%83%D1%81%3A%20${statusText}`);
+            const statusIcon = isRunning ? '🟢' : '🔴';
+            const statusText = isRunning ? 'Запущен' : 'Остановлен';
+            setElementText(status, `${statusIcon} Статус: ${statusText}`);
         }
     }
     
     function updateIterationsInfo() {
         const iterationsInfo = document.getElementById('trainer-iterations-info');
         if (iterationsInfo) {
-            setElementText(iterationsInfo, `%F0%9F%94%84%20%D0%98%D1%82%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B9%3A%20${iterationCount}`);
+            setElementText(iterationsInfo, `🔄 Итераций: ${iterationCount}`);
             
             if (iterationCount === 0) {
                 iterationsInfo.style.background = '#2d3748';
@@ -417,7 +415,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         const fishInfo = document.getElementById('trainer-fish-info');
         if (fishInfo) {
             const fish = findMyFish();
-            setElementText(fishInfo, `%F0%9F%92%B0%20%D0%A0%D1%8B%D0%B1%D0%B0%3A%20${fish}`);
+            setElementText(fishInfo, `💰 Рыба: ${fish}`);
             
             if (fish === 0n) {
                 fishInfo.style.background = '#742a2a';
@@ -431,12 +429,11 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         }
     }
     
-    function updateCurrentAction(encodedText) {
+    function updateCurrentAction(text) {
         const currentAction = document.getElementById('trainer-current-action');
         if (currentAction) {
-            setElementText(currentAction, encodedText);
+            setElementText(currentAction, text);
             
-            const text = decodeURIComponent(encodedText);
             if (text.includes('⏳')) {
                 currentAction.style.background = '#2d3748';
             } else if (text.includes('⚡')) {
@@ -518,7 +515,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         if (previousFish > 0n && myFish === previousFish) {
             errorCount++;
             if (errorCount >= 3) {
-                updateCurrentAction('%E2%9D%8C%20%D0%9E%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0%3A%20%D1%81%D0%BB%D0%B8%D1%88%D0%BA%D0%BE%D0%BC%20%D0%BC%D0%BD%D0%BE%D0%B3%D0%BE%20%D0%BE%D1%88%D0%B8%D0%B1%D0%BE%D0%BA');
+                updateCurrentAction('❌ Остановка: слишком много ошибок');
                 isRunning = false;
                 updateAllInfo();
                 return false;
@@ -552,12 +549,12 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         
         const countBigInt = BigInt(actualCount || "0");
         if (countBigInt === 0n) {
-            updateCurrentAction('%E2%9D%8C%20%D0%9D%D0%B5%D0%BB%D1%8C%D0%B7%D1%8F%20%D1%83%D0%BB%D1%83%D1%87%D1%88%D0%B8%D1%82%D1%8C%3A%20%D0%BC%D0%B0%D0%BA%D1%81%D0%B8%D0%BC%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B5%20%D0%BA%D0%BE%D0%BB%D0%B8%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%BE%20%D1%83%D0%BB%D1%83%D1%87%D1%88%D0%B5%D0%BD%D0%B8%D0%B9%20%3D%200');
+            updateCurrentAction('❌ Нельзя улучшить: максимальное значение');
             return false;
         }
         
         if (upgradePrice * countBigInt > myFish) {
-            updateCurrentAction('%E2%9D%8C%20%D0%9D%D0%B5%D0%B4%D0%BE%D1%81%D1%82%D0%B0%D1%82%D0%BE%D1%87%D0%BD%D0%BE%20%D1%80%D1%8B%D0%B1%D1%8B');
+            updateCurrentAction('❌ Недостаточно рыбы');
             return false;
         }
         
@@ -565,7 +562,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         let discount = discountElement ? discountElement.value : '0';
         
         const cost = upgradePrice * countBigInt;
-        updateCurrentAction(`%E2%9A%A1%20%D0%A3%D0%BB%D1%83%D1%87%D1%88%D0%B0%D0%B5%D0%BC%20${statToTrain}%3A%20%2B${countBigInt}%20%D1%83%D1%80%D0%BE%D0%B2%D0%BD%D0%B5%D0%B9%20(${cost}%20%D1%80%D1%8B%D0%B1%D1%8B)`);
+        updateCurrentAction(`⚡ Улучшаем ${statToTrain}: +${countBigInt} уровней (${cost} рыбы)`);
         
         $.post('index.php?a=basic', { 
             k: KEY,
@@ -578,7 +575,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         },
         function(result) {
             if (!result || !result.update) {
-                updateCurrentAction('%E2%9D%8C%20%D0%9E%D1%88%D0%B8%D0%B1%D0%BA%D0%B0%20%D0%BE%D1%82%D0%B2%D0%B5%D1%82%D0%B0%20%D1%81%D0%B5%D1%80%D0%B2%D0%B5%D1%80%D0%B0');
+                updateCurrentAction('❌ Ошибка ответа сервера');
                 scheduleNext();
                 return;
             }
@@ -624,7 +621,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
             }
             
             updateFishInfo();
-            updateCurrentAction(`%E2%9C%85%20%D0%A3%D1%81%D0%BF%D0%B5%D1%88%D0%BD%D0%BE!%20%D0%A3%D0%BB%D1%83%D1%87%D1%88%D0%B5%D0%BD%D0%BE%20${countBigInt}%20%D1%83%D1%80%D0%BE%D0%B2%D0%BD%D0%B5%D0%B9`);
+            updateCurrentAction(`✅ Успешно! Улучшено ${countBigInt} уровней`);
             
             scheduleNext();
         },
@@ -635,12 +632,12 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
     
     function autoTrainCheapestStat() {
         if (!isRunning) {
-            updateCurrentAction('%E2%8F%B9%EF%B8%8F%20%D0%A1%D0%BA%D1%80%D0%B8%D0%BF%D1%82%20%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD');
+            updateCurrentAction('⏹️ Скрипт остановлен');
             return false;
         }
         
         if (selectedStats.length === 0) {
-            updateCurrentAction('%E2%9A%A0%EF%B8%8F%20%D0%9D%D0%B5%20%D0%B2%D1%8B%D0%B1%D1%80%D0%B0%D0%BD%D0%BE%20%D0%BD%D0%B8%20%D0%BE%D0%B4%D0%BD%D0%BE%D0%B9%20%D1%85%D0%B0%D1%80%D0%B0%D0%BA%D1%82%D0%B5%D1%80%D0%B8%D1%81%D1%82%D0%B8%D0%BA%D0%B8');
+            updateCurrentAction('⚠️ Не выбрано ни одной характеристики');
             setTimeout(scheduleNext, 2000);
             return false;
         }
@@ -652,7 +649,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         updateFishInfo();
         
         if (myFish === 0n) {
-            updateCurrentAction('%F0%9F%8F%81%20%D0%A0%D1%8B%D0%B1%D0%B0%20%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD%D1%87%D0%B8%D0%BB%D0%B0%D1%81%D1%8C');
+            updateCurrentAction('🏁 Рыба закончилась');
             isRunning = false;
             updateAllInfo();
             return false;
@@ -666,7 +663,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         );
         
         if (validPrices.length === 0) {
-            updateCurrentAction('%F0%9F%8F%81%20%D0%9D%D0%B5%D1%82%20%D0%B4%D0%BE%D1%81%D1%82%D1%83%D0%BF%D0%BD%D1%8B%D1%85%20%D1%85%D0%B0%D1%80%D0%B0%D0%BA%D1%82%D0%B5%D1%80%D0%B8%D1%81%D1%82%D0%B8%D0%BA');
+            updateCurrentAction('🏁 Нет доступных характеристик для улучшения');
             isRunning = false;
             updateAllInfo();
             return false;
@@ -680,7 +677,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         
         const cheapest = sortedByPrice[0];
         
-        updateCurrentAction(`%F0%9F%94%8D%20%D0%90%D0%BD%D0%B0%D0%BB%D0%B8%D0%B7...%20%D0%92%D1%8B%D0%B1%D1%80%D0%B0%D0%BD%D0%B0%20${cheapest.stat}`);
+        updateCurrentAction(`🔍 Анализ... Выбрана ${statNames[cheapest.stat]}`);
         
         return trainStat(cheapest.stat, cheapest.kach.toString());
     }
@@ -692,7 +689,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
         
         let countdown = delay / 1000;
         const countdownInterval = setInterval(() => {
-            updateCurrentAction(`%E2%8F%B3%20%D0%A1%D0%BB%D0%B5%D0%B4%D1%83%D1%8E%D1%89%D0%B5%D0%B5%20%D1%83%D0%BB%D1%83%D1%87%D1%88%D0%B5%D0%BD%D0%B8%D0%B5%20%D1%87%D0%B5%D1%80%D0%B5%D0%B7%20${countdown}%D1%81...`);
+            updateCurrentAction(`⏳ Следующее улучшение через ${countdown}c`);
             countdown--;
             
             if (countdown < 0) {
@@ -705,7 +702,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
     function startTraining() {
         if (!isRunning) {
             isRunning = true;
-            updateCurrentAction('%E2%96%B6%EF%B8%8F%20%D0%A1%D0%BA%D1%80%D0%B8%D0%BF%D1%82%20%D0%B7%D0%B0%D0%BF%D1%83%D1%89%D0%B5%D0%BD');
+            updateCurrentAction('▶️ Скрипт запущен');
             updateAllInfo();
             autoTrainCheapestStat();
         }
@@ -713,7 +710,7 @@ else if (stat === 'charisma') encodedStatName = '%D0%9C%D0%B0%D1%81%D1%82%D0%B5%
     
     function stopTraining() {
         isRunning = false;
-        updateCurrentAction('%E2%8F%B9%EF%B8%8F%20%D0%A1%D0%BA%D1%80%D0%B8%D0%BF%D1%82%20%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD');
+        updateCurrentAction('⏹️ Скрипт остановлен');
         updateAllInfo();
     }
     
