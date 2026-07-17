@@ -30,7 +30,7 @@ javascript:(function() {
     
     const allStats = ["power", "block", "dexterity", "endurance", "charisma"];
     let selectedStats = [...allStats];
-    const values = ['24999999','2499999', '999999', '99999'];
+    const values = ['2499999','2499999', '999999', '99999'];
     
     const StatMaxValue = 4294967295n;
     const MaxErrorCount = 3;
