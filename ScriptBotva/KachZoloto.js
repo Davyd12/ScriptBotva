@@ -29,7 +29,7 @@ javascript:(function() {
     
     const StatMaxValue = 4294967295n;
     const MaxErrorCount = 3;
-    const MaxUpgradesPerCycle = 24999999;
+    const MaxUpgradesPerCycle = 24999999n;
     
     let errorCount = 0;
     let previousGold = 0n;
@@ -46,74 +46,127 @@ javascript:(function() {
         const oldPanel = document.getElementById('gold-trainer-panel');
         if (oldPanel) oldPanel.remove();
         
+        // Инжектим стили
+        const style = document.createElement('style');
+        style.id = 'gold-trainer-styles';
+        style.textContent = `
+            #gold-trainer-panel {
+                position: fixed !important;
+                top: 20px !important;
+                right: 20px !important;
+                background: #2d3748 !important;
+                color: white !important;
+                padding: 15px !important;
+                border-radius: 10px !important;
+                z-index: 99999 !important;
+                font-family: Arial, sans-serif !important;
+                width: 320px !important;
+                min-width: 320px !important;
+                max-width: 320px !important;
+                border: 2px solid #4a5568 !important;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            #gold-trainer-panel * {
+                background: transparent !important;
+                color: white !important;
+                font-family: Arial, sans-serif !important;
+            }
+            #gold-trainer-title {
+                font-weight: bold !important;
+                font-size: 14px !important;
+                margin-bottom: 8px !important;
+                text-align: center !important;
+                color: #f6e05e !important;
+                background: transparent !important;
+            }
+            #gold-trainer-status,
+            #gold-trainer-gold-info,
+            #gold-trainer-current-action,
+            #gold-trainer-iterations {
+                margin: 4px 0 !important;
+                padding: 4px !important;
+                background: #4a5568 !important;
+                border-radius: 4px !important;
+                font-size: 11px !important;
+            }
+            #gold-trainer-buttons {
+                display: flex !important;
+                gap: 8px !important;
+                margin-top: 8px !important;
+            }
+            #gold-trainer-start-btn,
+            #gold-trainer-stop-btn {
+                flex: 1 !important;
+                padding: 8px !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 4px !important;
+                cursor: pointer !important;
+                font-weight: bold !important;
+                font-size: 12px !important;
+            }
+            #gold-trainer-start-btn {
+                background: #38a169 !important;
+            }
+            #gold-trainer-stop-btn {
+                background: #e53e3e !important;
+            }
+            #gold-trainer-close-btn {
+                position: absolute !important;
+                top: 4px !important;
+                right: 4px !important;
+                background: transparent !important;
+                border: none !important;
+                color: #a0aec0 !important;
+                cursor: pointer !important;
+                font-size: 14px !important;
+                padding: 4px !important;
+            }
+        `;
+        document.head.appendChild(style);
+        
         const panel = document.createElement('div');
         panel.id = 'gold-trainer-panel';
-        panel.setAttribute('style', 
-            'position:fixed!important;top:20px!important;right:20px!important;' +
-            'background:#2d3748!important;color:white!important;padding:15px!important;' +
-            'border-radius:10px!important;z-index:99999!important;font-family:Arial,sans-serif!important;' +
-            'width:320px!important;min-width:320px!important;max-width:320px!important;border:2px solid #4a5568!important;'
-        );
         
         const title = document.createElement('div');
+        title.id = 'gold-trainer-title';
         setElementText(title, '💰 Автопрокачка (макс: 24999999)');
-        title.setAttribute('style', 
-            'font-weight:bold!important;font-size:14px!important;margin-bottom:8px!important;' +
-            'text-align:center!important;color:#f6e05e!important;'
-        );
         
         const status = document.createElement('div');
         status.id = 'gold-trainer-status';
         setElementText(status, '🔴 Остановлен');
-        status.setAttribute('style', 
-            'margin:4px 0!important;padding:4px!important;background:#4a5568!important;' +
-            'border-radius:4px!important;font-size:11px!important;'
-        );
         
         const goldInfo = document.createElement('div');
         goldInfo.id = 'gold-trainer-gold-info';
         setElementText(goldInfo, '💰 Золото: 0');
-        goldInfo.setAttribute('style', 
-            'margin:4px 0!important;padding:4px!important;background:#4a5568!important;' +
-            'border-radius:4px!important;font-size:11px!important;word-break:break-all!important;'
-        );
+        
+        const iterations = document.createElement('div');
+        iterations.id = 'gold-trainer-iterations';
+        setElementText(iterations, '🔄 Итераций: 0');
         
         const currentAction = document.createElement('div');
         currentAction.id = 'gold-trainer-current-action';
         setElementText(currentAction, '⏳ Нажмите Старт');
-        currentAction.setAttribute('style', 
-            'margin:4px 0!important;padding:4px!important;background:#2d3748!important;' +
-            'border-radius:4px!important;font-size:11px!important;'
-        );
         
         const btns = document.createElement('div');
-        btns.setAttribute('style', 'display:flex!important;gap:8px!important;margin-top:8px!important;');
+        btns.id = 'gold-trainer-buttons';
         
         const startBtn = document.createElement('button');
+        startBtn.id = 'gold-trainer-start-btn';
         setElementText(startBtn, '▶️ Старт');
-        startBtn.setAttribute('style', 
-            'flex:1!important;padding:8px!important;background:#38a169!important;color:white!important;' +
-            'border:none!important;border-radius:4px!important;cursor:pointer!important;' +
-            'font-weight:bold!important;font-size:12px!important;'
-        );
         startBtn.onclick = () => startTraining();
         
         const stopBtn = document.createElement('button');
+        stopBtn.id = 'gold-trainer-stop-btn';
         setElementText(stopBtn, '⏹️ Стоп');
-        stopBtn.setAttribute('style', 
-            'flex:1!important;padding:8px!important;background:#e53e3e!important;color:white!important;' +
-            'border:none!important;border-radius:4px!important;cursor:pointer!important;' +
-            'font-weight:bold!important;font-size:12px!important;'
-        );
         stopBtn.onclick = () => stopTraining();
         
         const closeBtn = document.createElement('button');
+        closeBtn.id = 'gold-trainer-close-btn';
         setElementText(closeBtn, '❌');
-        closeBtn.setAttribute('style', 
-            'position:absolute!important;top:4px!important;right:4px!important;' +
-            'background:none!important;border:none!important;color:#a0aec0!important;' +
-            'cursor:pointer!important;font-size:14px!important;'
-        );
         closeBtn.onclick = () => { stopTraining(); panel.remove(); };
         
         btns.appendChild(startBtn);
@@ -123,19 +176,11 @@ javascript:(function() {
         panel.appendChild(title);
         panel.appendChild(status);
         panel.appendChild(goldInfo);
+        panel.appendChild(iterations);
         panel.appendChild(currentAction);
         panel.appendChild(btns);
         
         document.body.appendChild(panel);
-        
-        setTimeout(() => {
-            const p = document.getElementById('gold-trainer-panel');
-            if (p) {
-                p.style.cssText = 
-                    'position:fixed!important;top:20px!important;right:20px!important;' +
-                    'width:320px!important;z-index:99999!important;';
-            }
-        }, 100);
     }
     
     function updateAllInfo() {
@@ -147,6 +192,11 @@ javascript:(function() {
         const goldInfo = document.getElementById('gold-trainer-gold-info');
         if (goldInfo) {
             setElementText(goldInfo, '💰 ' + findMyMoney());
+        }
+        
+        const iterations = document.getElementById('gold-trainer-iterations');
+        if (iterations) {
+            setElementText(iterations, '🔄 Итераций: ' + iterationCount);
         }
     }
     
@@ -226,10 +276,9 @@ javascript:(function() {
         
         let affordableUpgrades = availableGold / statInfo.price;
         
-        // ЛИМИТ: не более MaxUpgradesPerCycle за раз
-        if (affordableUpgrades > BigInt(MaxUpgradesPerCycle)) {
+        if (affordableUpgrades > MaxUpgradesPerCycle) {
             console.log(`⚠️ Лимит: ${MaxUpgradesPerCycle} (было ${affordableUpgrades})`);
-            affordableUpgrades = BigInt(MaxUpgradesPerCycle);
+            affordableUpgrades = MaxUpgradesPerCycle;
         }
         
         return affordableUpgrades;
@@ -247,7 +296,7 @@ javascript:(function() {
         
         let selectedValue = upgradeCount.toString();
         for (let value of values) {
-            if (Number(upgradeCount) >= Number(value)) {
+            if (BigInt(upgradeCount) >= BigInt(value)) {
                 selectedValue = value;
             }
         }
@@ -275,7 +324,8 @@ javascript:(function() {
             return;
         }
         
-        console.log(`[START] Iteration ${iterationCount + 1}`);
+        iterationCount++;
+        console.log(`[START] Iteration ${iterationCount}`);
         
         const div = document.querySelector('div[rel="1001"]');
         if (!div) {
@@ -313,8 +363,6 @@ javascript:(function() {
             stopTraining();
             return;
         }
-        
-        iterationCount++;
         
         if (performUpgrade(minPriceInfo, upgradeCount)) {
             setTimeout(() => {
