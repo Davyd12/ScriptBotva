@@ -36,6 +36,14 @@ javascript:(function() {
     let iterationCount = 0;
     let isRunning = false;
     
+    const statNames = {
+        power: 'Сила',
+        block: 'Блок',
+        dexterity: 'Ловкость',
+        endurance: 'Выносливость',
+        charisma: 'Харизма'
+    };
+    
     function setElementText(element, encodedText) {
         if (element) {
             element.textContent = decodeURIComponent(encodedText);
@@ -46,7 +54,6 @@ javascript:(function() {
         const oldPanel = document.getElementById('gold-trainer-panel');
         if (oldPanel) oldPanel.remove();
         
-        // Инжектим стили
         const style = document.createElement('style');
         style.id = 'gold-trainer-styles';
         style.textContent = `
@@ -91,6 +98,38 @@ javascript:(function() {
                 background: #4a5568 !important;
                 border-radius: 4px !important;
                 font-size: 11px !important;
+            }
+            #gold-trainer-stats-section {
+                margin: 8px 0 !important;
+                padding: 8px !important;
+                background: #4a5568 !important;
+                border-radius: 4px !important;
+            }
+            #gold-trainer-stats-title {
+                font-size: 11px !important;
+                margin-bottom: 6px !important;
+                color: #a0aec0 !important;
+            }
+            #gold-trainer-stats-grid {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 4px !important;
+            }
+            .gold-trainer-stat-label {
+                display: flex !important;
+                align-items: center !important;
+                font-size: 11px !important;
+                cursor: pointer !important;
+                padding: 2px !important;
+            }
+            .gold-trainer-stat-label input {
+                margin-right: 4px !important;
+            }
+            .gold-trainer-stat-label input:checked + span {
+                color: #68d391 !important;
+            }
+            .gold-trainer-stat-label span {
+                color: #a0aec0 !important;
             }
             #gold-trainer-buttons {
                 display: flex !important;
@@ -147,6 +186,48 @@ javascript:(function() {
         iterations.id = 'gold-trainer-iterations';
         setElementText(iterations, '🔄 Итераций: 0');
         
+        // === Секция выбора характеристик ===
+        const statsSection = document.createElement('div');
+        statsSection.id = 'gold-trainer-stats-section';
+        
+        const statsTitle = document.createElement('div');
+        statsTitle.id = 'gold-trainer-stats-title';
+        setElementText(statsTitle, '🎯 Выберите что качать:');
+        
+        const statsGrid = document.createElement('div');
+        statsGrid.id = 'gold-trainer-stats-grid';
+        
+        allStats.forEach(stat => {
+            const label = document.createElement('label');
+            label.className = 'gold-trainer-stat-label';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = 'gold-trainer-stat-' + stat;
+            checkbox.checked = selectedStats.includes(stat);
+            checkbox.onchange = function() {
+                if (this.checked) {
+                    if (!selectedStats.includes(stat)) {
+                        selectedStats.push(stat);
+                    }
+                } else {
+                    selectedStats = selectedStats.filter(s => s !== stat);
+                }
+                console.log('Выбранные статы:', selectedStats);
+            };
+            
+            const span = document.createElement('span');
+            setElementText(span, statNames[stat] || stat);
+            
+            label.appendChild(checkbox);
+            label.appendChild(span);
+            statsGrid.appendChild(label);
+        });
+        
+        statsSection.appendChild(statsTitle);
+        statsSection.appendChild(statsGrid);
+        // ===================================
+        
         const currentAction = document.createElement('div');
         currentAction.id = 'gold-trainer-current-action';
         setElementText(currentAction, '⏳ Нажмите Старт');
@@ -177,6 +258,7 @@ javascript:(function() {
         panel.appendChild(status);
         panel.appendChild(goldInfo);
         panel.appendChild(iterations);
+        panel.appendChild(statsSection);
         panel.appendChild(currentAction);
         panel.appendChild(btns);
         
