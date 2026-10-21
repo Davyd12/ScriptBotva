@@ -1,209 +1,390 @@
-(function () {
+(() => {
+  const STORAGE_KEY = '__skillUsageByStage';
+  const TIMER_KEY = '__skillTotalSkillsTimer';
+  const TABLE_CLASS = 'my-total-skill-table';
 
-    if (window.lunarTracker) return;
+  const skillNames = {
+    1: 'Лёгкая ракета',
+    2: 'Вампиризм',
+    3: 'Малый ремонтный комплект',
+    4: 'Большой ремонтный комплект',
+    5: 'Фиолетовая спираль',
+    6: 'Жёлтая спираль',
+    7: 'Механизм внеземной защиты',
+    8: 'Армагеддон',
+    9: 'Лазерная граната',
+    10: 'Световая бомба',
+    11: 'Космическая ракета',
+    12: 'Бомбардировка по площади'
+  };
 
-    const state = {
-        stages: [],
-        players: new Set(),
-        playerOrder: [],
-        data: {},
-        stats: {},
-        allies: new Set()
-    };
+  // Останавливаем предыдущий таймер при повторной вставке скрипта
+  if (window[TIMER_KEY]) {
+    clearInterval(window[TIMER_KEY]);
+    window[TIMER_KEY] = null;
+  }
+
+  /*
+   * Статистика хранится отдельно по этапам:
+   *
+   * {
+   *   "22": {
+   *     "Имя игрока": {
+   *       "1": 3,
+   *       "3": 2
+   *     }
+   *   }
+   * }
+   */
+  window[STORAGE_KEY] ??= {};
+
+  let previousData = '';
+  let lastKnownStage = null;
+
+  /*
+   * Проверка состояния из HTML:
+   *
+   * <body class="lang_RU old_bg2 battle resolving">
+   *
+   * Важно: battle и resolving — это классы body,
+   * а не текст на странице.
+   */
+  function isBattleResolvingVisible() {
+    const body = document.body;
+
+    return Boolean(
+      body &&
+      body.classList.contains('battle') &&
+      body.classList.contains('resolving')
+    );
+  }
+
+  function getCurrentStage() {
+    const stageElement = document.querySelector(
+      '.lunar_stage span'
+    );
+
+    if (stageElement) {
+      const stageNumber = parseInt(
+        stageElement.textContent.trim(),
+        10
+      );
+
+      if (Number.isFinite(stageNumber)) {
+        lastKnownStage = stageNumber;
+        return stageNumber;
+      }
+    }
+
+    // Запасной вариант — ищем число внутри блока lunar_stage
+    const stageBlock = document.querySelector(
+      '.lunar_stage'
+    );
+
+    if (stageBlock) {
+      const match = stageBlock.textContent.match(/\d+/);
+
+      if (match) {
+        const stageNumber = Number(match[0]);
+        lastKnownStage = stageNumber;
+        return stageNumber;
+      }
+    }
+
+    /*
+     * Если во время battle resolving блок этапа
+     * временно отсутствует, используем последний
+     * известный номер этапа.
+     */
+    return lastKnownStage;
+  }
+
+  function collectCurrentStage() {
+    const stage = getCurrentStage();
+
+    if (stage === null) {
+      console.warn(
+        '[Умения] Не удалось определить номер этапа.'
+      );
+
+      return null;
+    }
+
+    const stageStats = {};
+
+    document
+      .querySelectorAll('.lunar_log_row')
+      .forEach(row => {
+        const skillIcon = row.querySelector(
+          '[class*="icon_lunar_skill"]'
+        );
+
+        if (!skillIcon) {
+          return;
+        }
+
+        const skillMatch = skillIcon.className.match(
+          /icon_lunar_skill(\d+)/
+        );
+
+        if (!skillMatch) {
+          return;
+        }
+
+        const skillId = Number(skillMatch[1]);
+        const boldElements = [
+          ...row.querySelectorAll('b')
+        ];
+
+        if (!boldElements.length) {
+          return;
+        }
+
+        /*
+         * Как и в исходном C#:
+         * первый <b> — игрок, который использовал умение.
+         */
+        const playerName = boldElements[0]
+          .textContent
+          .trim();
+
+        if (!playerName) {
+          return;
+        }
+
+        if (!stageStats[playerName]) {
+          stageStats[playerName] = {};
+        }
+
+        stageStats[playerName][skillId] =
+          (stageStats[playerName][skillId] || 0) + 1;
+      });
+
+    /*
+     * Полностью заменяем данные текущего этапа.
+     * Это важно: при обновлении каждые 2 секунды
+     * одинаковые записи не прибавляются повторно.
+     *
+     * Предыдущие этапы не удаляются.
+     */
+    window[STORAGE_KEY][stage] = stageStats;
+
+    return stage;
+  }
+
+  function getTotalStats() {
+    const totalStats = {};
+
+    Object.values(window[STORAGE_KEY])
+      .forEach(stagePlayers => {
+        Object.entries(stagePlayers)
+          .forEach(([playerName, skills]) => {
+            if (!totalStats[playerName]) {
+              totalStats[playerName] = {};
+            }
+
+            Object.entries(skills)
+              .forEach(([skillId, count]) => {
+                totalStats[playerName][skillId] =
+                  (totalStats[playerName][skillId] || 0) +
+                  count;
+              });
+          });
+      });
+
+    return totalStats;
+  }
+
+  function findPlayerBlock(playerName) {
+    return [
+      ...document.querySelectorAll('.user_block')
+    ].find(block => {
+      const nameElement = block.querySelector(
+        '.lunar_name'
+      );
+
+      return (
+        nameElement &&
+        nameElement.textContent.trim() === playerName
+      );
+    });
+  }
+
+  function renderPlayer(
+    playerName,
+    stats,
+    playerBlock
+  ) {
+    if (!playerBlock) {
+      return;
+    }
+
+    const oldTable = playerBlock.querySelector(
+      `.${TABLE_CLASS}`
+    );
+
+    if (oldTable) {
+      oldTable.remove();
+    }
+
+    const skills = Object.entries(stats)
+      .sort((a, b) => Number(a[0]) - Number(b[0]));
+
+    if (!skills.length) {
+      return;
+    }
+
+    const rows = skills
+      .map(([skillId, count]) => {
+        const skillName =
+          skillNames[skillId] ||
+          `Умение ${skillId}`;
+
+        return `
+          <tr>
+            <td style="
+              padding-right:5px;
+              vertical-align:middle;
+            ">
+              <b
+                class="icon2 icon_lunar_skill${skillId}"
+                title="${skillName}"
+              ></b>
+            </td>
+
+            <td
+              title="${skillName}"
+              style="
+                color:#0f0;
+                text-align:right;
+                padding-left:3px;
+                vertical-align:middle;
+              "
+            >
+              ${count}
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    playerBlock.style.position = 'relative';
 
     const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.bottom = '0';
-    container.style.left = '50%';
-    container.style.transform = 'translateX(-50%) scale(0.75)';
-    container.style.transformOrigin = 'bottom center';
-    container.style.background = '#111';
-    container.style.color = '#fff';
-    container.style.padding = '10px';
-    container.style.zIndex = 99999;
-    container.style.maxHeight = '80vh';
-    container.style.overflow = 'auto';
+    container.className = TABLE_CLASS;
 
-    document.body.appendChild(container);
-
-    function parseStage() {
-        return document.querySelector('.lunar_stage span')?.textContent.trim();
-    }
-
-    function addPlayer(name, isAlly = false) {
-        if (!name || name === '[NAME]' || name.length < 2) return;
-
-        if (!state.players.has(name)) {
-            state.players.add(name);
-            state.playerOrder.push(name);
-        }
-
-        if (isAlly) {
-            state.allies.add(name);
-        }
-    }
-
-    function parsePlayers() {
-
-    // --- свои ---
-    document.querySelectorAll('.lunar_allies .lunar_name').forEach(el => {
-        addPlayer(el.textContent.trim(), true);
+    Object.assign(container.style, {
+      position: 'absolute',
+      right: '-5px',
+      top: '50%',
+      transform: 'translateY(-50%)',
+      fontSize: '10px',
+      lineHeight: '14px',
+      background: '#111',
+      color: '#fff',
+      border: '1px solid #333',
+      borderRadius: '3px',
+      padding: '3px',
+      zIndex: '9999',
+      whiteSpace: 'nowrap',
+      boxShadow: '0 0 5px #000'
     });
 
-    // --- враги ---
-    document.querySelectorAll('.lunar_enemies .lunar_name').forEach(el => {
-        addPlayer(el.textContent.trim(), false);
-    });
-}
-    function addStat(player, skillClass) {
-        if (!state.stats[player]) state.stats[player] = {};
-        if (!state.stats[player][skillClass]) state.stats[player][skillClass] = 0;
-        state.stats[player][skillClass]++;
+    container.innerHTML = `
+      <div style="
+        color:#ffd700;
+        font-weight:bold;
+        text-align:center;
+        margin-bottom:2px;
+      ">
+        Всего
+      </div>
+
+      <table>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    `;
+
+    playerBlock.appendChild(container);
+  }
+
+  function renderAllPlayers() {
+    const totalStats = getTotalStats();
+
+    Object.entries(totalStats)
+      .forEach(([playerName, stats]) => {
+        const playerBlock =
+          findPlayerBlock(playerName);
+
+        renderPlayer(
+          playerName,
+          stats,
+          playerBlock
+        );
+      });
+  }
+
+  function update() {
+    const resolving =
+      isBattleResolvingVisible();
+
+    /*
+     * В том числе при resolving продолжаем
+     * читать текущий финальный журнал.
+     */
+    const stage = collectCurrentStage();
+
+    if (stage === null) {
+      return;
     }
 
-    function parseActions(stage) {
-        if (!state.data[stage]) state.data[stage] = {};
+    const currentData = JSON.stringify(
+      window[STORAGE_KEY]
+    );
 
-        // --- свои ---
-        document.querySelectorAll('.lunar_allies .user_block').forEach(playerEl => {
-            const name = playerEl.querySelector('.lunar_name')?.textContent.trim();
-            if (!name) return;
-
-            const skill = playerEl.querySelector('.item_box');
-            if (!skill) return;
-
-            const cls = [...skill.classList].find(c => /^skill\d+$/.test(c));
-            if (!cls) return;
-
-            const skillNum = cls.replace('skill', '');
-	    if (skillNum === '0') return;
-
-            const iconClass = `icon_lunar_skill${skillNum}`;
-            const iconHTML = `<b class="icon2 ${iconClass}"></b>`;
-
-            const prev = state.data[stage][name];
-
-            if (!prev || prev.skill !== iconClass) {
-                state.data[stage][name] = {
-                    html: iconHTML,
-                    skill: iconClass
-                };
-                addStat(name, iconClass);
-            }
-        });
-
-        // --- враги ---
-        document.querySelectorAll('.lunar_log_row').forEach(row => {
-            const player = row.querySelector('b:not([class])')?.textContent.trim();
-            if (!player || player.length < 2) return;
-
-            const icon = row.querySelector('.icon2');
-            if (!icon) return;
-
-            const iconClass = [...icon.classList].find(c => c.startsWith('icon_lunar_skill'));
-            if (!iconClass) return;
-            if (iconClass === 'icon_lunar_skill0') return;
-
-            const prev = state.data[stage][player];
-
-            if (!prev || prev.skill !== iconClass) {
-                state.data[stage][player] = {
-                    html: icon.outerHTML,
-                    skill: iconClass
-                };
-                addStat(player, iconClass);
-            }
-        });
+    /*
+     * Если данные не изменились, не перерисовываем
+     * таблицы и не создаём лишнюю нагрузку.
+     */
+    if (currentData === previousData) {
+      return;
     }
 
-    function buildTooltip(player) {
-        const stats = state.stats[player];
-        if (!stats) return '';
+    previousData = currentData;
 
-        let html = '<div style="padding:5px;">';
+    renderAllPlayers();
 
-        Object.entries(stats).forEach(([skill, count]) => {
-            html += `<div style="display:flex; align-items:center; gap:5px;">
-                        <b class="icon2 ${skill}"></b> x${count}
-                     </div>`;
-        });
-
-        html += '</div>';
-        return html;
+    if (resolving) {
+      console.log(
+        `[Умения] battle resolving: ` +
+        `финальная статистика прочитана. ` +
+        `Этап: ${stage}`
+      );
+    } else {
+      console.log(
+        `[Умения] Статистика обновлена. ` +
+        `Этап: ${stage}`
+      );
     }
 
-    function render() {
-        const players = state.playerOrder.filter(p => p && p.length > 2);
+    console.table(getTotalStats());
+  }
 
-        const allies = players.filter(p => state.allies.has(p));
-        const enemies = players.filter(p => !state.allies.has(p));
+  // Первый запуск сразу
+  update();
 
-        const stages = state.stages;
+  // Обновление каждые 2 секунды
+  window[TIMER_KEY] = setInterval(
+    update,
+    2000
+  );
 
-        let html = `<table border="1" style="border-collapse: collapse; text-align:center;">`;
-
-        // этапы
-        html += `<tr><th>Игрок</th>`;
-        stages.forEach(s => html += `<th>${s}</th>`);
-        html += `</tr>`;
-
-        // --- враги ---
-        enemies.forEach(p => {
-            const tooltip = buildTooltip(p).replace(/"/g, '&quot;');
-
-            html += `<tr>`;
-            html += `<td style="padding:4px 8px;" title="${tooltip}">${p}</td>`;
-
-            stages.forEach(s => {
-                const val = state.data[s]?.[p]?.html || '';
-                html += `<td style="padding:6px;">${val}</td>`;
-            });
-
-            html += `</tr>`;
-        });
-
-        // --- линия ---
-        if (enemies.length && allies.length) {
-            html += `<tr>
-                <td colspan="${stages.length + 1}" 
-                    style="border-top:3px solid white;">
-                </td>
-            </tr>`;
-        }
-
-        // --- свои ---
-        allies.forEach(p => {
-            const tooltip = buildTooltip(p).replace(/"/g, '&quot;');
-
-            html += `<tr>`;
-            html += `<td style="padding:4px 8px;" title="${tooltip}">${p}</td>`;
-
-            stages.forEach(s => {
-                const val = state.data[s]?.[p]?.html || '';
-                html += `<td style="padding:6px;">${val}</td>`;
-            });
-
-            html += `</tr>`;
-        });
-
-        html += `</table>`;
-
-        container.innerHTML = html;
-    }
-
-    function tick() {
-        const stage = parseStage();
-        if (!stage) return;
-
-        if (!state.stages.includes(stage)) {
-            state.stages.push(stage);
-        }
-
-        parsePlayers();
-        parseActions(stage);
-        render();
-    }
-
-    window.lunarTracker = setInterval(tick, 5000);
-
+  console.log(
+    '[Умения] Скрипт включён.',
+    'Обновление каждые 2 секунды.',
+    'Состояние battle resolving только читается, ' +
+    'статистика не очищается.'
+  );
 })();
